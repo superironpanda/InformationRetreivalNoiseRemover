@@ -1,5 +1,17 @@
 from noise_remover import NoiseRemover
+import glob
 
-url = "https://techcrunch.com/2020/09/30/online-garden-shop-bloomscape-raises-15m-series-b-acquires-plant-care-app-vera/"
+english_html_list = glob.glob("./folder/en/*.html")
+spanish_html_list = glob.glob("./folder/es/*.html")
+chinese_html_list = glob.glob("./folder/zh-cn/*.html")
+
 noise_remover = NoiseRemover()
-noise_remover.remove_noise(url, "english")
+
+for html in english_html_list:
+    noise_remover.remove_noise(html, "en")
+
+for html in spanish_html_list:
+    noise_remover.remove_noise(html, "es")
+
+for html in chinese_html_list:
+    noise_remover.remove_noise(html, "zh-cn")

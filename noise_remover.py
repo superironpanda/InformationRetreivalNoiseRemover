@@ -1,25 +1,20 @@
-import re
 from bs4 import BeautifulSoup
-import urllib.request
 import nltk
 from langdetect import detect
 import jieba.posseg as pseg
-import jieba
 import string
 import codecs
+import os
 
 class NoiseRemover:
     def __init__(self):
         self.prefix_tags = [0]
 
-    def remove_noise(self, url, lang):
-        '''fp = urllib.request.urlopen(url)
-        mybytes = fp.read()
+    def remove_noise(self, file_path, lang):
+        self.file_name = file_path.split("/")[-1]
+        self.lang = lang
 
-        tech_crunch_html = mybytes.decode("utf8")
-        fp.close()'''
-
-        html_text = self.get_html_from_file("./folder/en/techcrunch.com#2020#09#28#amazon-launches-a-4-99-per-month-personal-shopper-service-for-mens-fashion#.html")
+        html_text = self.get_html_from_file(file_path)
         soup = BeautifulSoup(html_text, "html.parser")
         body = soup.find("body")
 
@@ -44,7 +39,7 @@ class NoiseRemover:
         # print(body_tokens_clean)
 
         # If chinese, extra tokenize step
-        if lang == "chinese":
+        if lang == "zh-cn":
             body_tokens_clean = self.chinese_tokenize(body_tokens_clean)
 
         self.prefix_sum_tags(body_tokens_clean)
@@ -144,8 +139,11 @@ class NoiseRemover:
 
                 new_line_checker = False
 
+        self.make_dir("noise_removed")
+        self.make_dir("noise_removed/" + self.lang)
+
         # store clean tokens into html file
-        html_file = open("tmp.txt", "wb")
+        html_file = open("./noise_removed/" + self.file_name, "wb")
         reverted_text = self.revert_double_quotes(output_html_string)
         html_file.write(reverted_text.encode("utf-8"))
         html_file.close()
@@ -159,15 +157,6 @@ class NoiseRemover:
         text = text.replace(right_single_quote, "'")
         text = text.replace(left_double_quote, "((")
         text = text.replace(right_double_quote, "))")
-        '''for i, token in enumerate(tokens):
-            if left_single_quote in token:
-                tokens[i] = token.replace(left_single_quote, "'")
-            elif right_single_quote in token:
-                tokens[i] = token.replace(right_single_quote, "'")
-            elif left_double_quote in token:
-                tokens[i] = token.replace(left_double_quote, '"')
-            elif right_double_quote in token:
-                tokens[i] = token.replace(right_double_quote, '"')'''
 
         return text
 
@@ -175,3 +164,10 @@ class NoiseRemover:
         text = text.replace("(( ", " \"")
         text = text.replace("))", "\"")
         return text
+
+    def make_dir(self, path):
+        # make dir if not exist
+        try:
+            os.mkdir(path)
+        except:
+            print("")
