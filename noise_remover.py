@@ -1,24 +1,26 @@
+import re
 from bs4 import BeautifulSoup
 import urllib.request
 import nltk
-from nltk.tokenize.stanford_segmenter import StanfordSegmenter
 from langdetect import detect
 import jieba.posseg as pseg
 import jieba
+import string
+import codecs
 
 class NoiseRemover:
     def __init__(self):
         self.prefix_tags = [0]
 
     def remove_noise(self, url, lang):
-        fp = urllib.request.urlopen(url)
+        '''fp = urllib.request.urlopen(url)
         mybytes = fp.read()
 
         tech_crunch_html = mybytes.decode("utf8")
-        fp.close()
+        fp.close()'''
 
-        soup = BeautifulSoup(tech_crunch_html, "html.parser")
-
+        html_text = self.get_html_from_file("./folder/en/techcrunch.com#2020#09#28#amazon-launches-a-4-99-per-month-personal-shopper-service-for-mens-fashion#.html")
+        soup = BeautifulSoup(html_text, "html.parser")
         body = soup.find("body")
 
         # remove script
@@ -33,8 +35,10 @@ class NoiseRemover:
             b.extract()
         for b in body.select("footer"):
             b.extract()
-        body_tokens = nltk.tokenize.word_tokenize(str(body))
-        # print(body_tokens)
+
+        body_string_quotes_cleaned = self.clean_quotes(str(body))
+
+        body_tokens = nltk.tokenize.word_tokenize(body_string_quotes_cleaned)
 
         body_tokens_clean = self.customize_tokenizer(body_tokens)
         # print(body_tokens_clean)
@@ -42,15 +46,20 @@ class NoiseRemover:
         # If chinese, extra tokenize step
         if lang == "chinese":
             body_tokens_clean = self.chinese_tokenize(body_tokens_clean)
-            print(body_tokens_clean)
 
         self.prefix_sum_tags(body_tokens_clean)
 
         i, j = self.noise_remove(body_tokens_clean)
-        print("i: " + str(i))
-        print("j: " + str(j))
+        # print("i: " + str(i))
+        # print("j: " + str(j))
         # print(body_tokens_clean[i : j + 1])
+
         self.store_tokens_to_html(body_tokens_clean[i : j + 1])
+
+    def get_html_from_file(self, file_path):
+        with codecs.open(file_path, "r", "utf-8") as file:
+            data = file.read()
+        return data
 
     def customize_tokenizer(self, tokens):
         new_tokens = []
@@ -114,10 +123,55 @@ class NoiseRemover:
 
     def store_tokens_to_html(self, tokens):
         # convert list to string
+        new_line_checker = False
+
         output_html_string = ""
-        for token in tokens:
-            output_html_string += token + "\n"
+        for i in range(len(tokens)):
+            token = tokens[i]
+            if "<" in token and ">" in token:
+                if new_line_checker == False:
+                    output_html_string += "\n"
+                    new_line_checker = True
+            else:
+                output_html_string += token
+                if i+1 < len(tokens):
+                    next_token = tokens[i+1]
+                    if any(character in string.punctuation for character in next_token):
+                        if len(next_token) > 2:
+                            output_html_string += " "
+                    else:
+                        output_html_string += " "
+
+                new_line_checker = False
+
         # store clean tokens into html file
-        html_file = open("tmp.html", "wb")
-        html_file.write(output_html_string.encode("utf-8"))
+        html_file = open("tmp.txt", "wb")
+        reverted_text = self.revert_double_quotes(output_html_string)
+        html_file.write(reverted_text.encode("utf-8"))
         html_file.close()
+
+    def clean_quotes(self, text):
+        left_single_quote = "‘"
+        right_single_quote = "’"
+        left_double_quote = "“"
+        right_double_quote = "”"
+        text = text.replace(left_single_quote, "'")
+        text = text.replace(right_single_quote, "'")
+        text = text.replace(left_double_quote, "((")
+        text = text.replace(right_double_quote, "))")
+        '''for i, token in enumerate(tokens):
+            if left_single_quote in token:
+                tokens[i] = token.replace(left_single_quote, "'")
+            elif right_single_quote in token:
+                tokens[i] = token.replace(right_single_quote, "'")
+            elif left_double_quote in token:
+                tokens[i] = token.replace(left_double_quote, '"')
+            elif right_double_quote in token:
+                tokens[i] = token.replace(right_double_quote, '"')'''
+
+        return text
+
+    def revert_double_quotes(self, text):
+        text = text.replace("(( ", " \"")
+        text = text.replace("))", "\"")
+        return text
